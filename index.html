@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fire Monitoring System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg-dark:#0d0f14; --bg-panel:#13161d; --bg-card:#181b24; --bg-card2:#1e2230;
+  --border:#2a2f3d; --border-bright:#3a4055;
+  --text-primary:#e8eaf2; --text-secondary:#8a90a8; --text-muted:#555c78;
+  --accent-blue:#4a9eff; --accent-green:#2ecc71; --accent-red:#ff3b3b;
+  --fire-red:#e53935; --live-green:#00e676;
+  --font-main:'Exo 2',sans-serif; --font-mono:'Share Tech Mono',monospace;
+}
+body { background:var(--bg-dark); color:var(--text-primary); font-family:var(--font-main); display:flex; height:100vh; overflow:hidden; }
+
+@keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0.35} }
+@keyframes rise   { 0%{transform:translateY(0) scale(1);opacity:.4} 100%{transform:translateY(-50px) scale(2.2);opacity:0} }
+@keyframes modalIn{ from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
+@keyframes fireGlow{ 0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,0)} 50%{box-shadow:0 0 18px 5px rgba(229,57,53,.4)} }
+
+/* SIDEBAR */
+.sidebar { width:180px; min-width:180px; background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+.sidebar-logo { padding:18px 16px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+.sidebar-logo span { font-size:13px; font-weight:600; color:var(--text-primary); line-height:1.2; }
+.sidebar-logo small { display:block; font-size:10px; color:var(--text-muted); font-weight:400; }
+.fire-icon { font-size:20px; }
+.sidebar-nav { padding:12px 0; flex:1; }
+.sidebar-status { padding:14px 16px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:10px 16px; font-size:13px; color:var(--text-secondary); cursor:pointer; border-left:3px solid transparent; transition:all .15s; }
+.nav-item:hover { background:rgba(74,158,255,.07); color:var(--text-primary); }
+.nav-item.active { background:rgba(74,158,255,.12); color:var(--accent-blue); border-left-color:var(--accent-blue); }
+.status-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent-green); margin-right:6px; animation:pulse 1.8s infinite; }
+.bdot { width:7px; height:7px; border-radius:50%; background:#555; display:inline-block; transition:background .3s; flex-shrink:0; }
+.bdot.on  { background:var(--accent-green); animation:pulse 1.8s infinite; }
+.bdot.off { background:var(--accent-red); }
+
+/* MAIN */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar { background:var(--bg-panel); border-bottom:1px solid var(--border); padding:10px 20px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.topbar-title { font-size:15px; font-weight:600; }
+.topbar-right { display:flex; align-items:center; gap:10px; }
+.yolo-badge { display:flex; align-items:center; gap:6px; background:rgba(74,158,255,.1); border:1px solid rgba(74,158,255,.3); border-radius:4px; padding:4px 10px; font-size:11px; color:var(--accent-blue); font-family:var(--font-mono); }
+.yolo-dot { width:6px; height:6px; border-radius:50%; background:var(--accent-blue); animation:pulse 1.5s infinite; }
+.bbar { display:flex; align-items:center; gap:7px; padding:4px 10px; background:var(--bg-card2); border:1px solid var(--border); border-radius:4px; font-size:11px; font-family:var(--font-mono); color:var(--text-muted); }
+.content { flex:1; overflow-y:auto; padding:14px 20px; }
+.section-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; font-family:var(--font-mono); }
+
+/* ★ WEBCAM CONTROL BAR ★ */
+.webcam-bar {
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin-bottom:14px; padding:10px 16px;
+  background:var(--bg-card2); border:1px solid var(--border-bright); border-radius:6px;
+}
+.webcam-bar label { font-size:11px; color:var(--text-muted); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+.webcam-bar select { background:var(--bg-card); border:1px solid var(--border); color:var(--text-primary); padding:5px 10px; border-radius:4px; font-size:12px; font-family:var(--font-mono); outline:none; cursor:pointer; }
+.webcam-bar select:focus { border-color:var(--accent-blue); }
+#start-stop-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  background:rgba(46,204,113,.18); border:2px solid var(--accent-green);
+  color:var(--accent-green); padding:8px 20px; border-radius:5px;
+  font-size:13px; font-family:var(--font-mono); font-weight:700;
+  letter-spacing:.5px; cursor:pointer; transition:background .15s; white-space:nowrap;
+}
+#start-stop-btn:hover { background:rgba(46,204,113,.3); }
+#start-stop-btn.stop { background:rgba(229,57,53,.18); border-color:var(--accent-red); color:var(--accent-red); }
+#start-stop-btn.stop:hover { background:rgba(229,57,53,.3); }
+.voice-toggle { display:flex; align-items:center; gap:6px; font-size:11px; font-family:var(--font-mono); color:var(--text-muted); cursor:pointer; user-select:none; }
+.voice-toggle input { accent-color:var(--accent-blue); cursor:pointer; }
+
+/* STATS */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+.stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:12px 14px; }
+.stat-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; font-family:var(--font-mono); }
+.stat-value { font-size:22px; font-weight:600; color:var(--text-primary); }
+.stat-value.danger  { color:var(--accent-red); }
+.stat-value.success { color:var(--accent-green); }
+
+/* CAMERA GRID */
+.cam-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.cam-tile { background:#000; border:1px solid var(--border); border-radius:6px; overflow:hidden; aspect-ratio:4/3; position:relative; cursor:pointer; transition:border-color .2s; }
+.cam-tile:hover { border-color:var(--accent-blue); }
+.cam-tile.fire-active { border-color:var(--accent-red)!important; border-width:2px; animation:fireGlow 1.4s infinite; }
+.cam-header { position:absolute; top:0; left:0; right:0; padding:4px 6px; background:rgba(0,0,0,.7); display:flex; justify-content:space-between; align-items:center; z-index:2; }
+.cam-id { font-size:8px; color:#999; font-family:var(--font-mono); }
+.cam-label { position:absolute; top:18px; left:6px; font-size:11px; font-weight:600; color:#fff; z-index:2; text-shadow:0 1px 4px rgba(0,0,0,.9); }
+.cam-body { width:100%; height:100%; position:relative; overflow:hidden; }
+.hallway { width:100%; height:100%; background:linear-gradient(to bottom,#2a2a2e 0%,#1a1a1f 40%,#131315 100%); position:relative; overflow:hidden; }
+.hallway-floor   { position:absolute; bottom:0; left:0; right:0; height:45%; background:linear-gradient(to top,#1e1c18,#29261e 60%,transparent); }
+.hallway-ceiling { position:absolute; top:0; left:0; right:0; height:20%; background:linear-gradient(to bottom,#3a3830,transparent); }
+.hallway-walls   { position:absolute; inset:0; background:linear-gradient(to right,rgba(0,0,0,.55) 0%,transparent 22%,transparent 78%,rgba(0,0,0,.55) 100%); }
+.hallway-light   { position:absolute; top:6%; left:50%; transform:translateX(-50%); width:55%; height:6px; background:rgba(255,255,200,.12); border-radius:50%; filter:blur(3px); }
+.cam-status { position:absolute; bottom:6px; left:6px; font-size:9px; font-family:var(--font-mono); padding:2px 6px; border-radius:3px; font-weight:600; z-index:6; }
+.cam-status.normal { background:rgba(0,200,100,.18); border:1px solid rgba(0,200,100,.45); color:#2ecc71; }
+.cam-status.fire   { background:rgba(229,57,53,.22); border:1px solid rgba(229,57,53,.65); color:#ff5252; animation:blink .8s infinite; }
+.cam-model-tag { position:absolute; bottom:6px; right:6px; font-size:8px; font-family:var(--font-mono); color:var(--accent-blue); background:rgba(74,158,255,.1); padding:2px 5px; border-radius:2px; z-index:6; }
+.thermo { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:2; }
+
+/* Camera 1 live elements */
+#cam1-wrapper { position:absolute; inset:0; z-index:1; overflow:hidden; }
+#cam1-video   { width:100%; height:100%; object-fit:cover; display:none; }
+#cam1-canvas  { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; }
+#cam1-fire-banner {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:rgba(229,57,53,.92); color:#fff; font-family:var(--font-mono);
+  font-size:11px; font-weight:700; letter-spacing:2px; padding:4px 12px;
+  border-radius:3px; z-index:5; display:none; animation:blink .85s infinite; white-space:nowrap;
+}
+#cam1-live-badge { position:absolute; top:5px; right:6px; background:var(--live-green); color:#000; font-size:8px; font-weight:700; padding:1px 5px; border-radius:2px; font-family:var(--font-mono); z-index:6; display:none; }
+#cam1-placeholder { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0a0b10; z-index:10; font-size:10px; color:var(--text-muted); font-family:var(--font-mono); gap:5px; text-align:center; padding:10px; }
+#cam1-placeholder .ico { font-size:22px; }
+
+/* Full cam view */
+.cam-full { background:#000; border:1px solid var(--border); border-radius:8px; overflow:hidden; position:relative; height:340px; }
+.cam-full-header { position:absolute; top:12px; left:12px; display:flex; align-items:center; gap:8px; z-index:5; }
+.cam-full-meta   { position:absolute; top:12px; right:12px; text-align:right; z-index:5; }
+.cam-name-badge  { background:rgba(0,0,0,.72); border:1px solid rgba(255,255,255,.2); border-radius:4px; padding:4px 10px; font-size:13px; font-weight:500; }
+
+/* Persistent full-view Camera 1 live layer */
+#fullcam1-layer { position:absolute; inset:0; z-index:1; display:none; }
+#fullcam1-video { width:100%; height:100%; object-fit:cover; }
+#fullcam1-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+#fullcam1-fire-banner { position:absolute; top:50px; left:50%; transform:translateX(-50%); background:var(--fire-red); color:#fff; font-size:13px; font-weight:700; padding:5px 18px; border-radius:4px; z-index:6; font-family:var(--font-mono); letter-spacing:1px; animation:blink 1s infinite; display:none; white-space:nowrap; }
+#fullcam1-fire-border { position:absolute; inset:0; border:3px solid rgba(229,57,53,.55); border-radius:8px; pointer-events:none; z-index:3; display:none; animation:blink 1.2s infinite; }
+#fullcam1-offline { position:absolute; inset:0; background:#0a0b10; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-muted); font-family:var(--font-mono); font-size:12px; gap:8px; z-index:4; }
+#fullcam1-status-badge { position:absolute; bottom:10px; left:12px; font-size:10px; font-family:var(--font-mono); padding:3px 8px; border-radius:3px; font-weight:600; z-index:7; }
+#fullcam1-live-badge { position:absolute; top:8px; right:70px; background:var(--live-green); color:#000; font-size:9px; font-weight:700; padding:2px 6px; border-radius:2px; font-family:var(--font-mono); z-index:7; display:none; }
+.live-badge      { background:var(--live-green); color:#000; font-size:10px; font-weight:700; padding:3px 7px; border-radius:3px; font-family:var(--font-mono); }
+.meta-ts,.meta-fps { font-size:11px; color:#bbb; font-family:var(--font-mono); background:rgba(0,0,0,.55); padding:2px 6px; border-radius:3px; display:block; margin-bottom:2px; }
+
+.hallway-lg { width:100%; height:100%; background:linear-gradient(135deg,#2e2c28 0%,#1a1917 35%,#131210 70%,#0e0d0c 100%); position:relative; overflow:hidden; }
+.hlg-floor   { position:absolute; bottom:0; left:0; right:0; height:50%; background:linear-gradient(to top,#1c1a14,#232018 50%,transparent); }
+.hlg-ceiling { position:absolute; top:0; left:0; right:0; height:22%; background:linear-gradient(to bottom,#38352c,transparent); }
+.hlg-wl { position:absolute; top:0; left:0; bottom:0; width:18%; background:linear-gradient(to right,rgba(200,190,160,.1),transparent); }
+.hlg-wr { position:absolute; top:0; right:0; bottom:0; width:18%; background:linear-gradient(to left,rgba(200,190,160,.1),transparent); }
+.hlg-light { position:absolute; top:5%; left:50%; transform:translateX(-50%); width:52%; height:5px; background:rgba(255,255,220,.15); border-radius:50%; filter:blur(4px); }
+
+/* Selector & log */
+.cam-selector { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.cam-btn { background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary); padding:5px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-family:var(--font-main); transition:all .15s; }
+.cam-btn:hover   { border-color:var(--accent-blue); color:var(--accent-blue); }
+.cam-btn.active  { background:rgba(74,158,255,.15); border-color:var(--accent-blue); color:var(--accent-blue); }
+.cam-btn.fire-cam{ border-color:var(--accent-red); color:var(--accent-red); }
+.cam-btn.fire-cam.active { background:rgba(229,57,53,.14); }
+.event-log { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.event-log-header { padding:10px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.event-log-title { font-size:13px; font-weight:600; }
+.log-actions { display:flex; gap:16px; }
+.log-btn { font-size:11px; color:var(--text-muted); cursor:pointer; font-family:var(--font-mono); background:none; border:none; text-transform:uppercase; letter-spacing:.5px; transition:color .15s; }
+.log-btn:hover { color:var(--accent-blue); }
+.log-body { padding:16px; font-family:var(--font-mono); font-size:12px; line-height:1.9; max-height:200px; overflow-y:auto; }
+.log-entry { display:flex; gap:10px; }
+.log-time  { color:var(--text-muted); min-width:70px; }
+.log-msg.fire   { color:var(--accent-red); font-weight:600; }
+.log-msg.action { color:var(--text-primary); }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.72); display:none; align-items:center; justify-content:center; z-index:100; }
+.modal-overlay.show { display:flex; }
+.alert-modal { background:#11141c; border:2px solid var(--accent-red); border-radius:8px; padding:28px 30px; max-width:400px; width:90%; text-align:center; animation:modalIn .3s ease; }
+.alert-icon  { width:52px; height:52px; border-radius:50%; background:rgba(229,57,53,.13); border:2px solid var(--accent-red); display:flex; align-items:center; justify-content:center; margin:0 auto 14px; font-size:24px; }
+.alert-badge { font-size:11px; font-family:var(--font-mono); color:#ff9800; background:rgba(255,152,0,.12); border:1px solid rgba(255,152,0,.3); padding:3px 10px; border-radius:3px; display:inline-block; margin-bottom:8px; }
+.alert-title { font-size:18px; font-weight:700; color:var(--accent-red); margin-bottom:8px; letter-spacing:.8px; font-family:var(--font-mono); }
+.alert-sub   { font-size:12px; color:var(--text-secondary); margin-bottom:18px; line-height:1.6; }
+.alert-actions { display:flex; gap:10px; justify-content:center; margin-bottom:14px; }
+.btn-ack  { background:rgba(74,158,255,.13); border:1px solid var(--accent-blue); color:var(--accent-blue); padding:8px 16px; border-radius:4px; font-size:11px; cursor:pointer; font-family:var(--font-mono); font-weight:600; }
+.btn-ack:hover  { background:rgba(74,158,255,.22); }
+.btn-live2 { background:rgba(229,57,53,.13); border:1px solid var(--accent-red); color:var(--accent-red); padding:8px 16px; border-radius:4px; font-size:11px; cursor:pointer; font-family:var(--font-mono); font-weight:600; }
+.btn-live2:hover { background:rgba(229,57,53,.22); }
+.modal-log { text-align:left; border-top:1px solid var(--border); padding-top:12px; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); line-height:1.9; }
+.modal-log .f { color:var(--accent-red); }
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="fire-icon">🔥</div>
+    <div><span>Fire Monitoring<small>System</small></span></div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-item active" onclick="showView('dashboard',this)"><span style="font-size:14px;">⊞</span> Dashboard</div>
+    <div class="nav-item" onclick="showView('cameras',this)"><span style="font-size:14px;">◉</span> Cameras</div>
+    <div class="nav-item" onclick="showView('alerts',this)"><span style="font-size:14px;">⚠</span> Alerts</div>
+  </div>
+  <div class="sidebar-status">
+    <div style="display:flex;align-items:center;">
+      <span class="status-dot"></span>
+      <span style="font-size:11px;color:var(--text-muted);">YOLOv8 Active</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span class="bdot off" id="sb-dot"></span>
+      <span style="font-size:10px;color:var(--text-muted);" id="sb-txt">Offline</span>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Fire Monitoring System</div>
+    <div class="topbar-right">
+      <div class="bbar"><span class="bdot off" id="tb-dot"></span><span id="tb-txt">Backend Offline</span></div>
+      <div class="yolo-badge"><div class="yolo-dot"></div>YOLOv8 Detection</div>
+      <button onclick="document.getElementById('fire-modal').classList.add('show')"
+        style="background:rgba(229,57,53,.13);border:1px solid var(--accent-red);color:var(--accent-red);padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--font-mono);">
+        ⚡ TEST ALERT
+      </button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="content" id="view-dashboard">
+    <div class="section-label">System Overview</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">Active Cameras</div><div class="stat-value success">8</div></div>
+      <div class="stat-card"><div class="stat-label">Fire Events</div><div class="stat-value danger" id="s-fire">0</div></div>
+      <div class="stat-card"><div class="stat-label">Normal Floors</div><div class="stat-value" id="s-norm">8</div></div>
+      <div class="stat-card"><div class="stat-label">Detection Mode</div><div class="stat-value" id="s-mode" style="font-size:13px;color:var(--accent-blue);padding-top:5px;">Balanced</div></div>
+    </div>
+
+    <!-- ★★★ START WEBCAM BUTTON BAR ★★★ -->
+    <div class="webcam-bar">
+      <label>🎥 Camera 1 — Floor 1:</label>
+      <button id="start-stop-btn" onclick="toggleWebcam()">▶ START WEBCAM</button>
+      <label style="margin-left:4px;">Mode:</label>
+      <select id="mode-sel" onchange="setMode(this.value)">
+        <option value="balanced">Balanced</option>
+        <option value="high">High Sensitivity</option>
+        <option value="strict">Low Sensitivity (Strict)</option>
+      </select>
+      <label class="voice-toggle"><input type="checkbox" id="voice-chk" onchange="voiceOn=this.checked"> 🔊 Voice Alert</label>
+    </div>
+
+    <div class="section-label" id="grid-lbl">Multi-Floor Camera Grid</div>
+    <div class="cam-grid" id="cam-grid"></div>
+  </div>
+
+  <!-- CAMERAS -->
+  <div class="content" id="view-cameras" style="display:none;">
+    <div class="cam-selector" id="cam-sel"></div>
+    <div class="cam-full" id="cam-full">
+      <!-- Persistent Camera 1 live layer — always in DOM, shown/hidden by JS -->
+      <div id="fullcam1-layer">
+        <video id="fullcam1-video" autoplay muted playsinline></video>
+        <canvas id="fullcam1-canvas"></canvas>
+        <div id="fullcam1-fire-banner">&#128293; FIRE DETECTED</div>
+        <div id="fullcam1-fire-border"></div>
+        <div id="fullcam1-offline"><span style="font-size:28px;">&#128247;</span><span>Start webcam from Dashboard</span></div>
+        <div id="fullcam1-live-badge">LIVE</div>
+        <div id="fullcam1-status-badge" class="cam-status normal">&#11044; Standby</div>
+      </div>
+      <!-- Dynamic content for non-live cameras (Floors 2-8) -->
+      <div id="fullcam-dynamic"></div>
+      <!-- Persistent overlay header/meta updated by renderFull -->
+      <div class="cam-full-header" id="fullcam-header" style="z-index:10;"></div>
+      <div class="cam-full-meta"   id="fullcam-meta"   style="z-index:10;"></div>
+    </div>
+    <div style="margin-top:14px;"></div>
+    <div class="event-log">
+      <div class="event-log-header">
+        <span class="event-log-title">Event Log</span>
+        <div class="log-actions">
+          <button class="log-btn" onclick="clearLog()">Clear</button>
+          <button class="log-btn" onclick="dlLog()">Download</button>
+        </div>
+      </div>
+      <div class="log-body" id="log-cam"></div>
+    </div>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="content" id="view-alerts" style="display:none;">
+    <div class="section-label">Alert History</div>
+    <div class="event-log">
+      <div class="event-log-header">
+        <span class="event-log-title">Event Log</span>
+        <div class="log-actions">
+          <button class="log-btn" onclick="clearLog()">Clear</button>
+          <button class="log-btn" onclick="dlLog()">Download</button>
+        </div>
+      </div>
+      <div class="log-body" id="log-alt"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="fire-modal">
+  <div class="alert-modal">
+    <div class="alert-icon">⚠</div>
+    <div class="alert-badge">EMERGENCY ALERT</div>
+    <div class="alert-title" id="modal-ttl">FIRE DETECTED — FLOOR 1</div>
+    <div class="alert-sub">Immediate action required. Follow standard emergency procedures and contact authorities.</div>
+    <div class="alert-actions">
+      <button class="btn-ack"  onclick="ackAlert()">ACKNOWLEDGE</button>
+      <button class="btn-live2" onclick="goLive()">GO TO LIVE FEED</button>
+    </div>
+    <div class="modal-log" id="modal-log"></div>
+  </div>
+</div>
+
+<script>
+/* ── STATE ─────────────────────────────── */
+const BE = 'http://localhost:5000';
+let mode='balanced', camOn=false, stream=null, loop=null;
+let voiceOn=false, voiceDone=false, beOnline=false;
+let fireCount=0, selIdx=0, logs=[];
+
+const floors=[
+  {id:'CAM-F1-001',floor:'Floor 1',fire:false,live:true},
+  {id:'CAM-F2-001',floor:'Floor 2',fire:false,live:false},
+  {id:'CAM-F3-001',floor:'Floor 3',fire:false,live:false},
+  {id:'CAM-F4-001',floor:'Floor 4',fire:false,live:false},
+  {id:'CAM-F5-001',floor:'Floor 5',fire:false,live:false},
+  {id:'CAM-F6-001',floor:'Floor 6',fire:false,live:false},
+  {id:'CAM-F7-001',floor:'Floor 7',fire:false,live:false},
+  {id:'CAM-F8-001',floor:'Floor 8',fire:false,live:false},
+];
+
+/* ── BACKEND PING ──────────────────────── */
+async function ping(){
+  try{ const r=await fetch(BE+'/status',{signal:AbortSignal.timeout(2000)}); beOnline=r.ok; }catch{ beOnline=false; }
+  const c=beOnline?'bdot on':'bdot off', t=beOnline?'Backend Online':'Backend Offline';
+  ['tb-dot','sb-dot'].forEach(id=>{ const e=document.getElementById(id); if(e) e.className=c; });
+  ['tb-txt','sb-txt'].forEach(id=>{ const e=document.getElementById(id); if(e) e.textContent=t.replace('Backend ',''); });
+  document.getElementById('tb-txt').textContent=t;
+}
+ping(); setInterval(ping,5000);
+
+/* ── HELPERS ───────────────────────────── */
+const ts  = ()=>new Date().toLocaleTimeString('en-GB',{hour12:false});
+const tsFull = ()=>new Date().toLocaleString('en-GB').replace(',',' ');
+function setMode(v){ mode=v; const m={balanced:'Balanced',high:'High Sensitivity',strict:'Low Sensitivity'}; document.getElementById('s-mode').textContent=m[v]||v; }
+
+function thermoSVG(fire){
+  const f=fire?'#ff5252':'#4a9eff', l=fire?20:10;
+  return `<svg width="20" height="40" viewBox="0 0 20 40" fill="none">
+    <rect x="8" y="2" width="4" height="24" rx="2" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.25)" stroke-width=".5"/>
+    <rect x="9" y="${26-l}" width="2" height="${l}" rx="1" fill="${f}"/>
+    <circle cx="10" cy="32" r="5" fill="${f}" opacity=".8"/>
+  </svg>`;
+}
+
+/* ── BUILD GRID ────────────────────────── */
+function buildGrid(){
+  document.getElementById('cam-grid').innerHTML = floors.map((f,i)=>{
+    if(f.live) return `
+    <div class="cam-tile" id="tile-0" onclick="openCamera(0)" title="Floor 1 — Live Webcam">
+      <div class="cam-header"><span class="cam-id">${f.id} | LIVE</span></div>
+      <div class="cam-label">${f.floor}</div>
+      <div class="cam-body">
+        <div id="cam1-wrapper">
+          <div id="cam1-placeholder">
+            <span class="ico">📷</span>
+            <span>Press <strong style="color:var(--accent-green);">▶ START WEBCAM</strong></span>
+            <span style="color:var(--text-muted);font-size:9px;">button above ↑</span>
+          </div>
+          <video id="cam1-video" autoplay muted playsinline></video>
+          <canvas id="cam1-canvas"></canvas>
+          <div id="cam1-fire-banner">🔥 FIRE</div>
+          <div id="cam1-live-badge">LIVE</div>
+        </div>
+        <div id="cam1-status" class="cam-status normal">● Standby</div>
+        <div class="cam-model-tag">YOLOv8</div>
+      </div>
+    </div>`;
+    return `
+    <div class="cam-tile" id="tile-${i}" onclick="openCamera(${i})" title="${f.floor}">
+      <div class="cam-header"><span class="cam-id" id="camts-${i}">${f.id} | ${ts()}</span></div>
+      <div class="cam-label">${f.floor}</div>
+      <div class="cam-body">
+        <div class="hallway">
+          <div class="hallway-ceiling"></div><div class="hallway-floor"></div>
+          <div class="hallway-walls"></div><div class="hallway-light"></div>
+          <div class="cam-status normal">✓ Normal</div>
+          <div class="thermo">${thermoSVG(false)}</div>
+        </div>
+        <div class="cam-model-tag">YOLOv8: Normal</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  setInterval(()=>{
+    const gl=document.getElementById('grid-lbl');
+    if(gl) gl.textContent='Multi-Floor Camera Grid — '+tsFull();
+    for(let i=1;i<8;i++){const e=document.getElementById('camts-'+i);if(e)e.textContent=floors[i].id+' | '+ts();}
+  },1000);
+}
+
+/* ── WEBCAM ────────────────────────────── */
+async function toggleWebcam(){ camOn?stopCam():await startCam(); }
+
+async function startCam(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480}},audio:false});
+  }catch(e){
+    alert('❌ Camera access denied.\nPlease allow camera permission in your browser and try again.');
+    return;
+  }
+  const vid=document.getElementById('cam1-video');
+  const ph=document.getElementById('cam1-placeholder');
+  const lb=document.getElementById('cam1-live-badge');
+  vid.srcObject=stream; vid.style.display='block';
+  ph.style.display='none'; lb.style.display='block';
+  camOn=true; voiceDone=false;
+  const btn=document.getElementById('start-stop-btn');
+  btn.textContent='⏹ STOP WEBCAM'; btn.classList.add('stop');
+  setStatus('normal');
+
+  // Hook both the dashboard tile video AND the persistent full-view video
+  hookFull();
+  const fv=document.getElementById('fullcam1-video');
+  if(fv){ fv.srcObject=stream; fv.play().catch(()=>{}); }
+  // Show live elements in full-view layer if Camera 1 is currently selected
+  if(selIdx===0){
+    const offline=document.getElementById('fullcam1-offline');
+    const liveBadge=document.getElementById('fullcam1-live-badge');
+    const fvid=document.getElementById('fullcam1-video');
+    if(offline) offline.style.display='none';
+    if(fvid) fvid.style.display='block';
+    if(liveBadge) liveBadge.style.display='block';
+    syncFullCam1FireUI(false);
+    document.getElementById('fullcam1-layer').style.display='block';
+  }
+
+  startLoop();
+  addLog(ts(),'Webcam started — Camera 1 / Floor 1','action');
+}
+
+function stopCam(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream=null; if(loop){clearInterval(loop);loop=null;}
+  camOn=false; floors[0].fire=false;
+
+  // Dashboard tile cleanup
+  const vid=document.getElementById('cam1-video');
+  const ph=document.getElementById('cam1-placeholder');
+  const lb=document.getElementById('cam1-live-badge');
+  const cv=document.getElementById('cam1-canvas');
+  vid.srcObject=null; vid.style.display='none';
+  ph.style.display='flex'; lb.style.display='none';
+  if(cv) cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+
+  // Full-view Camera 1 persistent layer cleanup
+  const fv=document.getElementById('fullcam1-video');
+  const fc=document.getElementById('fullcam1-canvas');
+  const offline=document.getElementById('fullcam1-offline');
+  const liveBadge=document.getElementById('fullcam1-live-badge');
+  if(fv){ fv.srcObject=null; fv.style.display='none'; }
+  if(fc) fc.getContext('2d').clearRect(0,0,fc.width,fc.height);
+  if(offline) offline.style.display='flex';
+  if(liveBadge) liveBadge.style.display='none';
+  syncFullCam1FireUI(false);
+
+  const btn=document.getElementById('start-stop-btn');
+  btn.textContent='▶ START WEBCAM'; btn.classList.remove('stop');
+  setStatus('standby');
+  document.getElementById('cam1-fire-banner').style.display='none';
+  document.getElementById('tile-0').classList.remove('fire-active');
+  updateStats(); addLog(ts(),'Webcam stopped','action');
+}
+
+function startLoop(){
+  loop=setInterval(async()=>{
+    if(!camOn) return;
+    const frame=capture(); if(!frame) return;
+    try{
+      const r=await fetch(BE+'/detect',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({frame,mode}),signal:AbortSignal.timeout(4000)});
+      if(r.ok){
+        beOnline=true;
+        onResult(await r.json());
+      }
+    }catch(e){
+      // Don't permanently kill beOnline — backend may recover
+      console.warn('Detection fetch error:',e);
+    }
+  },500);
+}
+
+const CAPTURE_W = 640, CAPTURE_H = 480;
+
+function capture(){
+  const v=document.getElementById('cam1-video');
+  if(!v||v.readyState<2) return null;
+  const c=document.createElement('canvas'); c.width=CAPTURE_W; c.height=CAPTURE_H;
+  c.getContext('2d').drawImage(v,0,0,CAPTURE_W,CAPTURE_H);
+  return c.toDataURL('image/jpeg',.85);
+}
+
+function onResult(d){
+  const was=floors[0].fire; floors[0].fire=d.fire;
+
+  // Always draw boxes on dashboard Camera 1 tile
+  drawBoxes('cam1-canvas','cam1-video',d.detections);
+
+  // Always draw boxes on full-view Camera 1 (persistent elements — always in DOM)
+  drawBoxes('fullcam1-canvas','fullcam1-video',d.detections);
+
+  // Sync full-view fire UI if Camera 1 is selected in Cameras tab
+  if(selIdx===0) syncFullCam1FireUI(d.fire);
+
+  if(d.fire){
+    setStatus('fire');
+    document.getElementById('cam1-fire-banner').style.display='block';
+    document.getElementById('tile-0').classList.add('fire-active');
+    if(!was){
+      fireCount++; updateStats();
+      const t=ts();
+      addLog(t,'🔥 FIRE detected — Floor 1 / CAM-F1-001','fire');
+      addLog(t,'Alert triggered','action');
+      addLog(t,'Evacuation protocol: Initiated','action');
+      showModal('FIRE DETECTED — FLOOR 1',t);
+      if(voiceOn&&!voiceDone){speak();voiceDone=true;}
+    }
+  } else {
+    setStatus('normal');
+    document.getElementById('cam1-fire-banner').style.display='none';
+    document.getElementById('tile-0').classList.remove('fire-active');
+    if(was) voiceDone=false;
+    updateStats();
+  }
+}
+
+function drawBoxes(cid,vid,dets){
+  const cv=document.getElementById(cid), v=document.getElementById(vid);
+  if(!cv||!v) return;
+  cv.width=v.videoWidth||v.offsetWidth||CAPTURE_W;
+  cv.height=v.videoHeight||v.offsetHeight||CAPTURE_H;
+  const ctx=cv.getContext('2d'); ctx.clearRect(0,0,cv.width,cv.height);
+  if(!dets||!dets.length) return;
+  // Scale from YOLO input size (CAPTURE_W x CAPTURE_H) → display canvas size
+  const sx=cv.width/CAPTURE_W, sy=cv.height/CAPTURE_H;
+  dets.forEach(d=>{
+    let [x1,y1,x2,y2]=d.box; x1*=sx;y1*=sy;x2*=sx;y2*=sy;
+    ctx.strokeStyle='#ff3b3b'; ctx.lineWidth=2.5;
+    ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+    const lbl=d.label.toUpperCase()+' '+(d.conf*100).toFixed(0)+'%';
+    ctx.font='bold 11px "Share Tech Mono",monospace';
+    const tw=ctx.measureText(lbl).width;
+    ctx.fillStyle='rgba(0,0,0,.82)'; ctx.fillRect(x1,y1-20,tw+10,20);
+    ctx.fillStyle='#fff'; ctx.fillText(lbl,x1+5,y1-5);
+  });
+}
+
+function setStatus(t){
+  const el=document.getElementById('cam1-status'); if(!el) return;
+  if(t==='fire')    { el.className='cam-status fire';   el.style.opacity='1'; el.textContent='Fire Detected'; }
+  else if(t==='normal') { el.className='cam-status normal'; el.style.opacity='1'; el.textContent='✓ Normal'; }
+  else                  { el.className='cam-status normal'; el.style.opacity='.5'; el.textContent='● Standby'; }
+}
+
+function updateStats(){
+  document.getElementById('s-fire').textContent=fireCount;
+  document.getElementById('s-norm').textContent=floors.length-floors.filter(f=>f.fire).length;
+}
+
+/* ── CAMERA FULL VIEW ──────────────────── */
+
+// Attach webcam stream to the persistent full-view video element
+function hookFull(){
+  if(!camOn||!stream) return;
+  const fv=document.getElementById('fullcam1-video');
+  if(fv && !fv.srcObject){ fv.srcObject=stream; fv.play().catch(()=>{}); }
+}
+
+// Tick the timestamp in the full view header
+let _fullTsTick=null;
+function startFullTsTick(){
+  if(_fullTsTick) return; // only one ticker
+  _fullTsTick=setInterval(()=>{
+    const e=document.getElementById('fullcam-ts'); if(e) e.textContent=tsFull();
+  },1000);
+}
+
+function renderFull(idx){
+  const f=floors[idx];
+
+  // ── Header and meta overlays (always updated) ──
+  document.getElementById('fullcam-header').innerHTML=`
+    <div class="cam-name-badge">Camera — ${f.floor}${f.live?' (LIVE WEBCAM)':''}</div>
+    <div class="live-badge" style="background:${f.live&&camOn?'var(--live-green)':f.live?'#774':'#555'};color:${f.live&&camOn?'#000':'#aaa'};">${f.live?(camOn?'LIVE':'OFFLINE'):'SIMULATED'}</div>`;
+  document.getElementById('fullcam-meta').innerHTML=`
+    <span class="meta-ts" id="fullcam-ts">${tsFull()}</span>
+    <span class="meta-fps">${f.live?'YOLOv8 Detection':'30 FPS'}</span>`;
+  startFullTsTick();
+
+  // ── Camera 1 (live webcam) ──
+  if(f.live){
+    // Show live layer, hide dynamic hallway
+    document.getElementById('fullcam1-layer').style.display='block';
+    document.getElementById('fullcam-dynamic').innerHTML='';
+
+    // Offline vs live indicator
+    const offline=document.getElementById('fullcam1-offline');
+    const liveBadge=document.getElementById('fullcam1-live-badge');
+    const vid=document.getElementById('fullcam1-video');
+    if(camOn){
+      offline.style.display='none';
+      vid.style.display='block';
+      liveBadge.style.display='block';
+      hookFull(); // ensure stream is attached
+    } else {
+      offline.style.display='flex';
+      vid.style.display='none';
+      liveBadge.style.display='none';
+    }
+
+    // Sync fire state immediately on render
+    syncFullCam1FireUI(f.fire);
+
+  } else {
+    // Hide live layer, show simulated hallway
+    document.getElementById('fullcam1-layer').style.display='none';
+    document.getElementById('fullcam-dynamic').innerHTML=`
+      <div class="hallway-lg" style="position:absolute;inset:0;">
+        <div class="hlg-ceiling"></div><div class="hlg-floor"></div>
+        <div class="hlg-wl"></div><div class="hlg-wr"></div><div class="hlg-light"></div>
+      </div>`;
+  }
+}
+
+// Sync the full-view Camera 1 fire UI without re-rendering the whole view
+function syncFullCam1FireUI(isFire){
+  const banner=document.getElementById('fullcam1-fire-banner');
+  const border=document.getElementById('fullcam1-fire-border');
+  const badge=document.getElementById('fullcam1-status-badge');
+  if(banner) banner.style.display=isFire?'block':'none';
+  if(border) border.style.display=isFire?'block':'none';
+  if(badge){
+    if(isFire){ badge.className='cam-status fire'; badge.textContent='Fire Detected'; }
+    else if(camOn){ badge.className='cam-status normal'; badge.textContent='✓ Normal'; }
+    else { badge.className='cam-status normal'; badge.style.opacity='.5'; badge.textContent='● Standby'; }
+  }
+}
+
+function buildSel(){
+  document.getElementById('cam-sel').innerHTML=floors.map((f,i)=>`
+    <button class="cam-btn ${f.fire?'fire-cam':''} ${i===selIdx?'active':''}" onclick="selCam(${i})">
+      ${f.floor}${f.fire?' ⚠':''}
+    </button>`).join('');
+}
+
+function selCam(i){ selIdx=i; buildSel(); renderFull(i); }
+
+function openCamera(i){ selIdx=i; document.querySelectorAll('.nav-item').forEach((n,j)=>n.classList.toggle('active',j===1)); showView('cameras',null); }
+
+/* ── VIEWS ─────────────────────────────── */
+function showView(v,el){
+  ['dashboard','cameras','alerts'].forEach(id=>{ document.getElementById('view-'+id).style.display=(id===v)?'block':'none'; });
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(v==='cameras'){ buildSel(); selCam(selIdx); renderLogs(); }
+  if(v==='alerts')  renderLogs();
+}
+
+/* ── LOGS ──────────────────────────────── */
+function addLog(t,msg,type){ logs.push({t,msg,type}); renderLogs(); }
+function renderLogs(){
+  ['log-cam','log-alt'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.innerHTML=!logs.length
+      ?'<div style="color:var(--text-muted);font-size:12px;">No events yet.</div>'
+      :logs.slice().reverse().map(e=>`<div class="log-entry"><span class="log-time">[${e.t}]</span><span class="log-msg ${e.type}">${e.msg}</span></div>`).join('');
+  });
+}
+function clearLog(){ logs=[]; renderLogs(); }
+function dlLog(){
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(logs.map(e=>`[${e.t}] ${e.msg}`).join('\n'));
+  a.download='fire_event_log.txt'; a.click();
+}
+
+/* ── MODAL ─────────────────────────────── */
+function showModal(title,t){
+  document.getElementById('modal-ttl').textContent=title;
+  document.getElementById('modal-log').innerHTML=[
+    `<div class="f">[${t}] Fire detected on Floor 1</div>`,
+    `<div>[${t}] Alert triggered</div>`,
+    `<div>[${t}] Dashboard updated</div>`,
+    `<div>[${t}] Fire suppression system notified</div>`,
+    `<div>[${t}] Authority notification initiated</div>`,
+    `<div>[${t}] Emergency lighting activated</div>`,
+    `<div>[${t}] Evacuation protocol: Initiated</div>`,
+  ].join('');
+  document.getElementById('fire-modal').classList.add('show');
+}
+function ackAlert(){ document.getElementById('fire-modal').classList.remove('show'); }
+function goLive(){ ackAlert(); selIdx=0; document.querySelectorAll('.nav-item').forEach((n,i)=>n.classList.toggle('active',i===1)); showView('cameras',null); }
+
+/* ── VOICE ─────────────────────────────── */
+function speak(){
+  if(!window.speechSynthesis) return;
+  const m=new SpeechSynthesisUtterance('Warning. Fire detected on Floor 1. Stay calm. Evacuate immediately. Do not use elevators. Call Fire Emergency 101.');
+  m.rate=0.9; window.speechSynthesis.speak(m);
+}
+
+/* ── INIT ──────────────────────────────── */
+buildGrid();
+addLog(ts(),'System initialised — webcam ready to start','action');
+</script>
+</body>
+</html>
