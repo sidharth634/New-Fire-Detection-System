@@ -11,6 +11,8 @@ Then open: http://localhost:5000
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+import matplotlib
+matplotlib.use("Agg")
 from ultralytics import YOLO
 import numpy as np
 import cv2
@@ -49,6 +51,10 @@ try:
 
     model = YOLO(MODEL_PATH)
 
+    dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+    model.predict(dummy, verbose=False)
+    print("YOLO warm-up complete")
+  
     print("[✓] Model loaded successfully!")
 except Exception as e:
     print("[ERROR]", repr(e))
