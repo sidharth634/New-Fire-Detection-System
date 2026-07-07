@@ -329,7 +329,7 @@ const floors=[
 
 /* ── BACKEND PING ──────────────────────── */
 async function ping(){
-  try{ const r=await fetch(BE+'/status',{signal:AbortSignal.timeout(2000)}); beOnline=r.ok; }catch{ beOnline=false; }
+  try{ const r=await fetch(BE+'/status',{signal:AbortSignal.timeout(30000)}); beOnline=r.ok; }catch{ beOnline=false; }
   const c=beOnline?'bdot on':'bdot off', t=beOnline?'Backend Online':'Backend Offline';
   ['tb-dot','sb-dot'].forEach(id=>{ const e=document.getElementById(id); if(e) e.className=c; });
   ['tb-txt','sb-txt'].forEach(id=>{ const e=document.getElementById(id); if(e) e.textContent=t.replace('Backend ',''); });
