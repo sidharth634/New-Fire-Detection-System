@@ -19,17 +19,7 @@ import os
 import re
 from datetime import datetime
 
-app = Flask(__name__, static_folder='.')
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": [
-                "https://sidharth634.github.io"
-            ]
-        }
-    }
-)  # Allow browser requests from same machine
+CORS(app) # Allow browser requests from same machine
 
 # ── Load model ──────────────────────────────────────────────────────────────
 # Search common locations for best.pt
