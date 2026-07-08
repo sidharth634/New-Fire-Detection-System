@@ -11,8 +11,6 @@ Then open: http://localhost:5000
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import matplotlib
-matplotlib.use("Agg")
 import numpy as np
 import cv2
 import base64
