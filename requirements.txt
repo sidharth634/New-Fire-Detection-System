@@ -1,8 +1,11 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.4.1+cpu
+torchvision==0.19.1+cpu
 Flask
 Flask-Cors
-ultralytics
+ultralytics==8.2.103
 opencv-python-headless
-numpy
+numpy<2
 Pillow
 requests
 gunicorn
