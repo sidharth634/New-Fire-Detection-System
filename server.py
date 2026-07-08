@@ -21,7 +21,8 @@ import os
 import re
 from datetime import datetime
 
-CORS(app) # Allow browser requests from same machine
+app = Flask(__name__, static_folder=None)
+CORS(app)  # Allow browser requests from any origin (e.g. your GitHub Pages site)
 
 # ── Load model ──────────────────────────────────────────────────────────────
 # Search common locations for best.pt
@@ -73,11 +74,7 @@ os.makedirs("alerts", exist_ok=True)
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'fire_monitoring_app.html')
-
-@app.route('/styles.css')
-def styles():
-    return send_from_directory('.', 'styles.css')
+    return send_from_directory('.', 'index.html')
 
 
 @app.route('/detect', methods=['POST'])
@@ -166,6 +163,5 @@ if __name__ == '__main__':
     print(f"  UI     : http://localhost:5000")
     print(f"  API    : http://localhost:5000/detect  (POST)")
     print("="*55 + "\n")
-    if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
