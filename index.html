@@ -476,16 +476,18 @@ function startLoop(){
     const frame=capture(); if(!frame) return;
     try{
       const r=await fetch(BE+'/detect',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({frame,mode}),signal:AbortSignal.timeout(4000)});
+        body:JSON.stringify({frame,mode}),signal:AbortSignal.timeout(15000)});
       if(r.ok){
         beOnline=true;
         onResult(await r.json());
+      } else {
+        console.warn('Detection request failed with status:', r.status, await r.text().catch(()=>''));
       }
     }catch(e){
       // Don't permanently kill beOnline — backend may recover
-      console.warn('Detection fetch error:',e);
+      console.warn('Detection fetch error:', e.name, e.message);
     }
-  },500);
+  },1200);
 }
 
 const CAPTURE_W = 640, CAPTURE_H = 480;
